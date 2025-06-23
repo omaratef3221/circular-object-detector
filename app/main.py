@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
 import traceback
-from .models import ImageAnalysisResult, DetectedCircle, CircleProperties
+from .models import ImageAnalysisResult, DetectedCircle, CircleProperties, BoundingBox
 from .storage import ImageStorage
 from .detection import CircleDetector
 import json
@@ -87,30 +87,14 @@ async def view_result(image_id: str):
     return FileResponse(result_path)
 
 @app.get("/evaluate-auto/{image_id}")
-async def evaluate_auto(image_id: str):
-    if image_id not in analysis_results:
-        raise HTTPException(status_code=404, detail="Image not found")
-    
-    gt_path = os.path.join(storage.storage_path, "ground_truth", f"{image_id}.json")
-    if not os.path.exists(gt_path):
-        raise HTTPException(status_code=404, detail="Ground truth file not found")
-
-    with open(gt_path, "r") as f:
-        data = json.load(f)
-
-    ground_truth = []
-    for circle in data["ground_truth"]:
-        ground_truth.append(
-        DetectedCircle(
-            id=circle["id"],
-            properties=CircleProperties(
-                centroid_x=circle["properties"]["centroid_x"],
-                centroid_y=circle["properties"]["centroid_y"],
-                radius=circle["properties"]["radius"],
-                bounding_box=circle["properties"]["bounding_box"]
-            )
-        )
+async def evaluate_with_coco(image_id: str):
+    result = detector.evaluate_detection(
+        image_filename=image_id,
+        coco_json_path='/Users/omaratef/Dropbox/TEMP/AIQ_Assignment/Assignment1/coin-dataset/_annotations.coco.json',
+        storage=storage,
+        DetectedCircle=DetectedCircle,
+        CircleProperties=CircleProperties,
+        BoundingBox=BoundingBox,
+        iou_thresh=25
     )
-
-    detected = analysis_results[image_id].circles
-    return detector.evaluate_detection(detected, ground_truth)
+    return result

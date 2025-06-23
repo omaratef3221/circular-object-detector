@@ -1,6 +1,5 @@
 import os
 import json
-import uuid
 from typing import Optional
 from fastapi import UploadFile
 import magic
@@ -23,8 +22,7 @@ class ImageStorage:
         file_type = magic.from_buffer(file_content, mime=True)
         if not file_type.startswith("image/"):
             raise ValueError("Uploaded file is not an image")
-
-        file_id = str(uuid.uuid4())
+        file_id = file.filename
         ext = os.path.splitext(file.filename)[1]
         filename = f"{file_id}{ext}"
         file_path = os.path.join(self.storage_path, "originals", filename)

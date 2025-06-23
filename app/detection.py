@@ -4,6 +4,8 @@ import numpy as np
 from typing import List, Tuple
 from .models import CircleProperties, DetectedCircle, BoundingBox
 import filetype
+import json
+import os
 
 class CircleDetector:
     def __init__(self, min_area: int = 1000):
@@ -57,31 +59,62 @@ class CircleDetector:
 
         return detected, mask_img, result_img
 
-    def evaluate_detection(self, detected: List[DetectedCircle], ground_truth: List[DetectedCircle], iou_thresh: float = 25.0,) -> dict:
-        matched_gt, matched_det = set(), set()
+    def evaluate_detection(self, image_filename: str, coco_json_path: str, storage, DetectedCircle, CircleProperties, BoundingBox, iou_thresh: float = 25.0) -> dict:
+        with open(coco_json_path, "r") as f:
+            coco = json.load(f)
 
-        for d in detected:
+        image_info = next((img for img in coco["images"] if img["file_name"] == image_filename), None)
+        if not image_info:
+            raise ValueError(f"{image_filename} not found in COCO JSON")
+
+        image_path = storage.get_image_path(image_filename)
+        detected, _, _ = self.detect_circles(image_path)
+
+        annotations = [a for a in coco["annotations"] if a["image_id"] == image_info["id"]]
+        ground_truth = []
+        for i, ann in enumerate(annotations, 1):
+            x, y, w, h = ann["bbox"]
+            ground_truth.append(
+                DetectedCircle(
+                    id=str(i),
+                    properties=CircleProperties(
+                        centroid_x=int(x + w / 2),
+                        centroid_y=int(y + h / 2),
+                        radius=int(min(w, h) / 2),
+                        bounding_box=BoundingBox(
+                            x=int(x), y=int(y), width=int(w), height=int(h)
+                        ),
+                    ),
+                )
+            )
+
+        matched_gt_ids = set()
+        matched_det_ids = set()
+
+        for i, d in enumerate(detected):
             dx, dy = d.properties.centroid_x, d.properties.centroid_y
-            for g in ground_truth:
+            for j, g in enumerate(ground_truth):
                 gx, gy = g.properties.centroid_x, g.properties.centroid_y
-                if np.hypot(dx - gx, dy - gy) <= iou_thresh:
-                    matched_gt.add(g.id)
-                    matched_det.add(d.id)
+                if j not in matched_gt_ids and np.hypot(dx - gx, dy - gy) <= iou_thresh:
+                    matched_gt_ids.add(j)
+                    matched_det_ids.add(i)
                     break
 
-        tp = len(matched_det)
-        fp = len(detected) - tp
-        fn = len(ground_truth) - len(matched_gt)
+        correct = len(matched_gt_ids)
+        total_gt = len(ground_truth)
+        total_det = len(detected)
 
-        prec = tp / (tp + fp) if tp + fp else 0
-        rec = tp / (tp + fn) if tp + fn else 0
-        f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0
+        missed = total_gt - correct
+        false_positives = total_det - correct
+
+        accuracy = correct / total_gt if total_gt else 0
 
         return {
-            "precision": prec,
-            "recall": rec,
-            "f1_score": f1,
-            "true_positives": tp,
-            "false_positives": fp,
-            "false_negatives": fn,
+            "accuracy": round(accuracy, 3),
+            "coins_detected": total_det,
+            "ground_truth_total": total_gt,
+            "correct_matches": correct,
+            "false_positives": false_positives,
+            "missed": missed,
+            "summary": f"{correct} of {total_gt} coins detected — {false_positives} false positives, {missed} missed"
         }
