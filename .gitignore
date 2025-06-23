@@ -1,3 +1,5 @@
 .DS_Store
 /storage
 tests.ipynb
+/app/__pycache__
+/.ipynb_checkpoints
