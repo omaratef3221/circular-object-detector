@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from typing import List, Tuple
 from .models import CircleProperties, DetectedCircle, BoundingBox
-
+import filetype
 
 class CircleDetector:
     def __init__(self, min_area: int = 1000):
@@ -11,49 +11,38 @@ class CircleDetector:
 
     def preprocess(self, img: np.ndarray) -> np.ndarray:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.medianBlur(gray, 11)
-        edges = cv2.Canny(blurred, 10, 200)
-        # edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+        blurred = cv2.medianBlur(gray, 7)
+        edges = cv2.Canny(blurred, 50, 150)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
         return edges
 
-    def detect_circles( self, image_path: str) -> Tuple[List[DetectedCircle], Image.Image, Image.Image]:
+    def detect_circles(self, image_path: str) -> Tuple[List[DetectedCircle], Image.Image, Image.Image]:
+        if not filetype.is_image(image_path):
+            raise ValueError("Provided path does not point to a valid image file.")
+        
         img = cv2.imread(image_path)
         edges = self.preprocess(img)
         circles = cv2.HoughCircles(
-        edges,
-        cv2.HOUGH_GRADIENT,
-        dp=0.6,
-        minDist=40,
-        param1=120,
-        param2=20,
-        minRadius=20,
-        maxRadius=150
+            image=edges,
+            method=cv2.HOUGH_GRADIENT,
+            dp=1.0,
+            minDist=40,
+            param1=100,
+            param2=30,
+            minRadius=20,
+            maxRadius=140
         )
 
-        h, w = img.shape[:2]
-        mask = np.zeros((h, w), dtype=np.uint8)
+        h, w = img.shape[:2] # skip the RGB count channel (last one)
+        mask = np.zeros((h, w, 3), dtype=np.uint8)
         annotated = img.copy()
         detected: List[DetectedCircle] = []
-
-        def iou(c1, c2):
-            x1, y1, r1 = c1
-            x2, y2, r2 = c2
-            dist = np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-            return dist < max(r1, r2)
-
-        # Merge overlapping circles
-        final_circles = []
-        if circles is not None:
-            circles = np.round(circles[0, :]).astype("int")
-            for c in circles:
-                if all(not iou(c, f) for f in final_circles):
-                    final_circles.append(c)
-
+        circles = np.uint16(np.around(circles))
         # Annotate
-        for i, (x, y, r) in enumerate(final_circles):
-            cv2.circle(mask, (x, y), r, 255, -1)
-            cv2.circle(annotated, (x, y), r, (0, 255, 0), 2)
-            cv2.putText(annotated, str(i + 1), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+        for i, (x, y, r) in enumerate(circles[0, :]):
+            cv2.circle(mask, (x, y), r, (0, 255,0), thickness= 4) #circle mask
+            cv2.circle(annotated, (x, y), r, (0, 255, 0), thickness=4) # circle image
+            cv2.putText(annotated, str(i + 1), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 4)
 
             props = CircleProperties(
                 centroid_x=x,
@@ -63,11 +52,10 @@ class CircleDetector:
             )
             detected.append(DetectedCircle(id=str(i + 1), properties=props))
 
-        mask_pil = Image.fromarray(mask)
-        result_pil = Image.fromarray(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB))
-        print("Detected circles using Hough (filtered):", len(final_circles))
+        mask_img = Image.fromarray(mask)
+        result_img = Image.fromarray(annotated)
 
-        return detected, mask_pil, result_pil
+        return detected, mask_img, result_img
 
     def evaluate_detection(self, detected: List[DetectedCircle], ground_truth: List[DetectedCircle], iou_thresh: float = 25.0,) -> dict:
         matched_gt, matched_det = set(), set()

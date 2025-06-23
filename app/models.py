@@ -23,3 +23,5 @@ class ImageAnalysisResult(BaseModel):
     circles: List[DetectedCircle]
     mask_path: Optional[str] = None
     original_path: str
+    result_path: str
+    ground_truth_path: str

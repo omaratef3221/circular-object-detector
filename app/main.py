@@ -19,21 +19,23 @@ analysis_results = {}
 @app.post("/upload-image")
 async def upload_image(image: UploadFile = File(...)):
     try:
-        image_id, _ = storage.save_uploaded_file(image)
-        image_path = storage.get_image_path(image_id)
+        image_id, image_path = storage.save_uploaded_file(image)
 
         circles, mask, result_image = detector.detect_circles(image_path)
 
-        mask_path = storage.save_mask(image_id, mask)
-        result_path = storage.save_result_image(image_id, result_image)
+        mask_path = storage.save_result(image_id, mask, is_mask=True)
+        result_path = storage.save_result(image_id, result_image)
+
+        gt_path = storage.save_ground_truth(image_id, circles)
 
         analysis_results[image_id] = ImageAnalysisResult(
             image_id=image_id,
             circles=circles,
             mask_path=mask_path,
-            original_path=image_path
+            original_path=image_path,
+            result_path=result_path,
+            ground_truth_path = gt_path
         )
-        gt_path = storage.save_ground_truth(image_id, circles)
         return {"image_id": image_id, "detected_circles": len(circles)}
 
     except Exception as e:
@@ -42,13 +44,9 @@ async def upload_image(image: UploadFile = File(...)):
 
 @app.get("/list-circles/{image_id}")
 async def list_circles(image_id: str):
-    print(f"Listing circles for image_id: {image_id}")
-    print(f"Current analysis results: {analysis_results.keys()}")
     if image_id not in analysis_results:
         raise HTTPException(status_code=404, detail="Image not found")
-    
     result = analysis_results[image_id]
-    print(f"Found result for image_id: {image_id}, circles: {len(result.circles)}")
     return {
         "image_id": image_id,
         "circles": [
@@ -81,11 +79,10 @@ async def view_result(image_id: str):
     if image_id not in analysis_results:
         raise HTTPException(status_code=404, detail="Image not found")
     
-    result = analysis_results[image_id]
-    result_path = os.path.join(storage.storage_path, "results", f"{image_id}_result.png")
+    result_path = os.path.join(storage.storage_path, "results", f"{image_id}_results.png")
     
     if not os.path.exists(result_path):
-        raise HTTPException(status_code=404, detail="Result image not found")
+        raise HTTPException(status_code=404, detail=f"Result image not found or path {result_path} doesn't exist")
     
     return FileResponse(result_path)
 
@@ -101,6 +98,19 @@ async def evaluate_auto(image_id: str):
     with open(gt_path, "r") as f:
         data = json.load(f)
 
-    ground_truth = [DetectedCircle(**circle) for circle in data["ground_truth"]]
+    ground_truth = []
+    for circle in data["ground_truth"]:
+        ground_truth.append(
+        DetectedCircle(
+            id=circle["id"],
+            properties=CircleProperties(
+                centroid_x=circle["properties"]["centroid_x"],
+                centroid_y=circle["properties"]["centroid_y"],
+                radius=circle["properties"]["radius"],
+                bounding_box=circle["properties"]["bounding_box"]
+            )
+        )
+    )
+
     detected = analysis_results[image_id].circles
     return detector.evaluate_detection(detected, ground_truth)
