@@ -3,3 +3,4 @@
 tests.ipynb
 /app/__pycache__
 /.ipynb_checkpoints
+/coin-dataset
