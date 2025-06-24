@@ -30,10 +30,12 @@ class CircleDetector:
             dp=1.0,
             minDist=40,
             param1=100,
-            param2=30,
+            param2=15,
             minRadius=20,
             maxRadius=140
         )
+        if circles is None:
+            return [], Image.fromarray(edges), Image.fromarray(img)
 
         h, w = img.shape[:2] # skip the RGB count channel (last one)
         mask = np.zeros((h, w, 3), dtype=np.uint8)

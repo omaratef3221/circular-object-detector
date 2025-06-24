@@ -90,7 +90,7 @@ async def view_result(image_id: str):
 async def evaluate_with_coco(image_id: str):
     result = detector.evaluate_detection(
         image_filename=image_id,
-        coco_json_path='/Users/omaratef/Dropbox/TEMP/AIQ_Assignment/Assignment1/coin-dataset/_annotations.coco.json',
+        coco_json_path='storage/_annotations.coco.json',
         storage=storage,
         DetectedCircle=DetectedCircle,
         CircleProperties=CircleProperties,
