@@ -1,0 +1,156 @@
+{
+	"info": {
+		"_postman_id": "ff04d9e8-7366-41d9-bffc-7a3ed847a369",
+		"name": "AIQ_Assignment1",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "44847863",
+		"_collection_link": "https://omarelgendy-7148784.postman.co/workspace/Omar-Elgendy's-Workspace~c9fe45c2-a125-483a-8355-1da39183822b/collection/44847863-ff04d9e8-7366-41d9-bffc-7a3ed847a369?action=share&source=collection_link&creator=44847863"
+	},
+	"item": [
+		{
+			"name": "upload_image",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "image",
+							"type": "file",
+							"src": "/Users/omaratef/Dropbox/TEMP/AIQ_Assignment/Assignment1/coin-dataset/0ba4fa31-913c-45be-9e59-bc14fe4f324e_jpg.rf.89dddeb3544e94d2c5f1aa763b85823d.jpg"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/upload-image",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"upload-image"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "list-circles",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/list-circles/170_1479423306_jpg.rf.3d2c8875f1db8d85d0aee6744d8b8e13.jpg",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"list-circles",
+						"170_1479423306_jpg.rf.3d2c8875f1db8d85d0aee6744d8b8e13.jpg"
+					],
+					"query": [
+						{
+							"key": "image_id",
+							"value": "416653bc-e3c1-4b3b-9740-963874236416",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "circle-details",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/circle-details/170_1479423306_jpg.rf.3d2c8875f1db8d85d0aee6744d8b8e13.jpg/2",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"circle-details",
+						"170_1479423306_jpg.rf.3d2c8875f1db8d85d0aee6744d8b8e13.jpg",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "view-results",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/view-result/0ba4fa31-913c-45be-9e59-bc14fe4f324e_jpg.rf.89dddeb3544e94d2c5f1aa763b85823d.jpg",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"view-result",
+						"0ba4fa31-913c-45be-9e59-bc14fe4f324e_jpg.rf.89dddeb3544e94d2c5f1aa763b85823d.jpg"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "evaluate_results",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/evaluate-auto/0ba4fa31-913c-45be-9e59-bc14fe4f324e_jpg.rf.89dddeb3544e94d2c5f1aa763b85823d.jpg",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"evaluate-auto",
+						"0ba4fa31-913c-45be-9e59-bc14fe4f324e_jpg.rf.89dddeb3544e94d2c5f1aa763b85823d.jpg"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
