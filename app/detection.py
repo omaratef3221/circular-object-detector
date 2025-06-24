@@ -13,6 +13,9 @@ class CircleDetector:
 
     def preprocess(self, img: np.ndarray) -> np.ndarray:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        gray = clahe.apply(gray)
+        gray = cv2.bilateralFilter(gray, 9, 75, 75)
         blurred = cv2.medianBlur(gray, 7)
         edges = cv2.Canny(blurred, 50, 150)
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
@@ -24,35 +27,50 @@ class CircleDetector:
         
         img = cv2.imread(image_path)
         edges = self.preprocess(img)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
         circles = cv2.HoughCircles(
             image=edges,
             method=cv2.HOUGH_GRADIENT,
-            dp=1.0,
+            dp=1.2,
             minDist=40,
             param1=100,
-            param2=15,
+            param2=25,
             minRadius=20,
-            maxRadius=140
+            maxRadius=120
         )
+
         if circles is None:
             return [], Image.fromarray(edges), Image.fromarray(img)
 
-        h, w = img.shape[:2] # skip the RGB count channel (last one)
+        h, w = img.shape[:2]
         mask = np.zeros((h, w, 3), dtype=np.uint8)
         annotated = img.copy()
         detected: List[DetectedCircle] = []
+
         circles = np.uint16(np.around(circles))
-        # Annotate
+
         for i, (x, y, r) in enumerate(circles[0, :]):
-            cv2.circle(mask, (x, y), r, (0, 255,0), thickness= 4) #circle mask
-            cv2.circle(annotated, (x, y), r, (0, 255, 0), thickness=4) # circle image
+            circle_mask = np.zeros(gray.shape, dtype=np.uint8)
+            cv2.circle(circle_mask, (x, y), r, 255, thickness=-1)
+
+            area = cv2.countNonZero(circle_mask)
+            ideal_area = np.pi * (r ** 2)
+            roundness = area / ideal_area if ideal_area != 0 else 0
+
+            if roundness < 0.85 or roundness > 1.15:
+                continue
+
+            cv2.circle(mask, (x, y), r, (0, 255, 0), thickness=4)
+            cv2.circle(annotated, (x, y), r, (0, 255, 0), thickness=4)
             cv2.putText(annotated, str(i + 1), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 4)
 
             props = CircleProperties(
                 centroid_x=x,
                 centroid_y=y,
                 radius=r,
-                bounding_box=BoundingBox(x=x - r, y=y - r, width=2*r, height=2*r)
+                bounding_box=BoundingBox(x=x - r, y=y - r, width=2 * r, height=2 * r)
             )
             detected.append(DetectedCircle(id=str(i + 1), properties=props))
 
@@ -64,14 +82,36 @@ class CircleDetector:
     def evaluate_detection(self, image_filename: str, coco_json_path: str, storage, DetectedCircle, CircleProperties, BoundingBox, iou_thresh: float = 25.0) -> dict:
         with open(coco_json_path, "r") as f:
             coco = json.load(f)
-
         image_info = next((img for img in coco["images"] if img["file_name"] == image_filename), None)
         if not image_info:
             raise ValueError(f"{image_filename} not found in COCO JSON")
 
-        image_path = storage.get_image_path(image_filename)
-        detected, _, _ = self.detect_circles(image_path)
+        gt_path = os.path.join(storage.storage_path, "ground_truth", f"{image_filename}.json")
+        if not os.path.exists(gt_path):
+            raise ValueError(f"Ground truth (detected result) not found for {image_filename}")
+        
+        with open(gt_path, "r") as f:
+            detected_data = json.load(f)
 
+        detected = []
+        for c in detected_data["ground_truth"]:
+            props = c["properties"]
+            bbox = props["bounding_box"]
+            detected.append(
+                DetectedCircle(
+                    id=c["id"],
+                    properties=CircleProperties(
+                        centroid_x=props["centroid_x"],
+                        centroid_y=props["centroid_y"],
+                        radius=props["radius"],
+                        bounding_box=BoundingBox(
+                            x=bbox["x"], y=bbox["y"], width=bbox["width"], height=bbox["height"]
+                        ),
+                    )
+                )
+            )
+
+        # load actual ground truth from coco
         annotations = [a for a in coco["annotations"] if a["image_id"] == image_info["id"]]
         ground_truth = []
         for i, ann in enumerate(annotations, 1):
@@ -83,10 +123,8 @@ class CircleDetector:
                         centroid_x=int(x + w / 2),
                         centroid_y=int(y + h / 2),
                         radius=int(min(w, h) / 2),
-                        bounding_box=BoundingBox(
-                            x=int(x), y=int(y), width=int(w), height=int(h)
-                        ),
-                    ),
+                        bounding_box=BoundingBox(x=int(x), y=int(y), width=int(w), height=int(h))
+                    )
                 )
             )
 
