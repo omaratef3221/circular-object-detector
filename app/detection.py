@@ -13,8 +13,8 @@ class CircleDetector:
 
     def preprocess(self, img: np.ndarray) -> np.ndarray:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (7, 7), 2)
-        edges = cv2.Canny(blurred, 50, 150)
+        blurred = cv2.medianBlur(gray, 9)
+        edges = cv2.Canny(blurred, 5, 200, apertureSize=3)
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
         return edges
 
@@ -30,11 +30,11 @@ class CircleDetector:
         circles = cv2.HoughCircles(
             image=edges,
             method=cv2.HOUGH_GRADIENT,
-            dp=1.2,
+            dp=1,
             minDist=40,
             param1=100,
-            param2=25,
-            minRadius=20,
+            param2=20,
+            minRadius=25,
             maxRadius=120
         )
 
@@ -132,7 +132,7 @@ class CircleDetector:
 
         missed = total_gt - correct
         false_positives = total_det - correct
-        accuracy = correct / total_gt if total_gt else 0
+        accuracy = correct / total_det if total_det else 0
 
         return {
             "accuracy": round(accuracy, 3),
